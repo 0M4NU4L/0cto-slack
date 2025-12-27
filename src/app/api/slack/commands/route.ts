@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySlackRequest, isUserAllowed, isChannelAllowed } from '@/lib/slack-utils';
 
+/**
+ * Simple GET handler to verify the endpoint is reachable
+ */
+export async function GET() {
+  return NextResponse.json({
+    status: 'ok',
+    message: 'Slack commands endpoint is reachable',
+    timestamp: new Date().toISOString()
+  });
+}
+
 export async function POST(req: NextRequest) {
   console.log('🚀 Slack command received at:', new Date().toISOString());
   
@@ -102,8 +113,8 @@ export async function POST(req: NextRequest) {
       }, { status: 200 });
     }
 
-    // Handle /0cto command
-    if (command === '/0cto') {
+    // Handle /0cto or /gitpulse command
+    if (command === '/0cto' || command === '/gitpulse') {
       const subcommand = text?.trim().split(' ')[0] || 'help';
 
       switch (subcommand) {
@@ -413,6 +424,7 @@ export async function POST(req: NextRequest) {
 
         case 'help':
         default:
+          const cmd = command || '/0cto';
           return NextResponse.json({
             response_type: 'ephemeral',
             text: '0cto - Your AI Development Assistant',
@@ -421,7 +433,7 @@ export async function POST(req: NextRequest) {
                 type: 'section',
                 text: {
                   type: 'mrkdwn',
-                  text: '*0cto Commands:*\n\n• `/0cto analyze` - Analyze recent channel messages for potential issues\n• `/0cto create-issue` - Create a new GitHub issue\n• `/0cto status` - Check bot configuration status\n• `/0cto help` - Show this help message\n\nYou can also mention @0cto in any channel to get my attention!'
+                  text: `*0cto Commands:*\n\n• \`${cmd} analyze\` - Analyze recent channel messages for potential issues\n• \`${cmd} create-issue\` - Create a new GitHub issue\n• \`${cmd} status\` - Check bot configuration status\n• \`${cmd} help\` - Show this help message\n\nYou can also mention @0cto in any channel to get my attention!`
                 }
               }
             ]
