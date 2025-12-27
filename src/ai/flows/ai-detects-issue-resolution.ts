@@ -85,7 +85,17 @@ const aiDetectIssueResolutionFlow = ai.defineFlow(
     outputSchema: DetectIssueResolutionOutputSchema,
   },
   async input => {
-    const {output} = await detectIssueResolutionPrompt(input);
-    return output!;
+    try {
+      const {output} = await detectIssueResolutionPrompt(input);
+      return output!;
+    } catch (error) {
+      console.error('Error in aiDetectIssueResolutionFlow:', error);
+      // Return a safe default to prevent crashing on rate limits
+      return {
+        isResolutionClaim: false,
+        confidence: 'low',
+        claimedBy: input.currentUserId,
+      };
+    }
   }
 );

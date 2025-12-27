@@ -24,7 +24,7 @@ export type Message = {
     issueUrl?: string; // URL of the created GitHub issue
     status?: 'pending' | 'completed'; // Status of the AI suggestion
     isSystemMessage?: boolean;
-    systemMessageType?: 'issue-list' | 'pr-list' | 'pr-verification' | 'security-alert' | 'incident-alert';
+    systemMessageType?: 'issue-list' | 'pr-list' | 'pr-verification' | 'security-alert' | 'incident-alert' | 'generic';
     systemMessageData?: any[];
     tempId?: string; // temporary Id for optimistic updates
 };

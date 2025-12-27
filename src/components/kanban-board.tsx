@@ -55,37 +55,7 @@ function PriorityBadge({ priority }: { priority: Priority }) {
 }
 
 // Mock placeholder issues to demonstrate layout
-const MOCK_ISSUES: KanbanIssue[] = [
-  {
-    id: "gh-101",
-    number: 101,
-    title: "Improve onboarding docs for new contributors",
-    summary: "Add step-by-step guide and screenshots for initial setup.",
-    assignee: { name: "Alex", avatarUrl: "https://i.pravatar.cc/100?img=3" },
-    priority: "medium",
-    column: "todo",
-    source: "github",
-  },
-  {
-    id: "ai-1",
-    title: "AI: Race condition in message feed on slow networks",
-    summary: "Observed duplicate renders when switching channels quickly.",
-    assignee: null,
-    priority: "high",
-    column: "in_progress",
-    source: "ai",
-  },
-  {
-    id: "gh-88",
-    number: 88,
-    title: "UI: Align avatars in chat bubbles",
-    summary: "Left margin inconsistent in Firefox vs Chrome.",
-    assignee: { name: "Sam", avatarUrl: "https://i.pravatar.cc/100?img=5" },
-    priority: "low",
-    column: "done",
-    source: "github",
-  },
-];
+const MOCK_ISSUES: KanbanIssue[] = [];
 
 export function KanbanBoard({ repoFullName, aiIssues = [], className }: KanbanBoardProps) {
   const [query, setQuery] = useState("");

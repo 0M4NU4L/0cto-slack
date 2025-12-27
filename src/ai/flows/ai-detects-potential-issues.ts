@@ -30,7 +30,7 @@ const DetectIssueOutputSchema = z.object({
 });
 export type DetectIssueOutput = z.infer<typeof DetectIssueOutputSchema>;
 
-export async function aiDetectIssue(input: DetectIssueInput): Promise<DetectIssueOutput> {
+export async function aiDetectIssue(input: DetectIssueInput): Promise<DetectIssueOutput | null> {
   return aiDetectIssueFlow(input);
 }
 
@@ -71,10 +71,16 @@ const aiDetectIssueFlow = ai.defineFlow(
   {
     name: 'aiDetectIssueFlow',
     inputSchema: DetectIssueInputSchema,
-    outputSchema: DetectIssueOutputSchema,
+    outputSchema: DetectIssueOutputSchema.nullable(),
   },
   async input => {
-    const {output} = await detectIssuePrompt(input);
-    return output!;
+    try {
+      const {output} = await detectIssuePrompt(input);
+      return output!;
+    } catch (error) {
+      console.error('Error in aiDetectIssueFlow:', error);
+      // Return null to indicate failure (e.g. rate limit), allowing client to fallback
+      return null;
+    }
   }
 );

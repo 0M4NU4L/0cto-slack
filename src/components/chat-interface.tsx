@@ -53,6 +53,7 @@ export function ChatInterface({ repoFullName, channelId }: ChatInterfaceProps) {
 
   const { data: serverMessages, isLoading } = useCollection<Message>(messagesQuery);
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
+  const [lastIssueDetectionTime, setLastIssueDetectionTime] = useState<number>(0);
 
   const messages = useMemo(() => {
     const messageMap = new Map<string, Message>();
@@ -340,37 +341,71 @@ export function ChatInterface({ repoFullName, channelId }: ChatInterfaceProps) {
         await addDoc(messagesRef, finalVerificationMessage);
       }
       
-      const detectionResult = await aiDetectIssue({ 
+      let detectionResult = await aiDetectIssue({ 
         messages: recentMessages.map(m => ({ sender: m.sender, text: m.text })),
         ...(mentions.length > 0 && { mentions })
       });
+
+      // Fallback heuristic if AI fails (e.g. rate limit)
+      if (!detectionResult) {
+          const lowerText = text.toLowerCase();
+          if (lowerText.match(/\b(fix|bug|issue|crash|error|fail|broken|ui|map|jira)\b/i) || lowerText.startsWith('/issue')) {
+             detectionResult = {
+                 is_issue: true,
+                 title: text.length > 50 ? text.substring(0, 47) + '...' : text,
+                 description: text,
+                 priority: 'medium',
+                 assignees: []
+             };
+          } else {
+             detectionResult = { is_issue: false, title: '', description: '', priority: 'low' };
+          }
+      }
       
       if (detectionResult.is_issue) {
-          const aiTempId = `temp_ai_${Date.now()}`;
-          const aiMessage: Omit<Message, 'id' | 'timestamp'> = {
-              sender: '0cto AI',
-              senderId: 'ai_assistant',
-              avatarUrl: '/brain-circuit.svg',
-              text: `I've detected a potential issue: **${detectionResult.title}**${detectionResult.assignees && detectionResult.assignees.length > 0 ? `\n\nSuggested assignees: ${detectionResult.assignees.map(a => `@${a}`).join(', ')}` : ''}`,
-              isIssue: true,
-              issueDetails: {
-                  title: detectionResult.title,
-                  description: detectionResult.description,
-                  priority: detectionResult.priority,
-                  ...(detectionResult.assignees && detectionResult.assignees.length > 0 && { assignees: detectionResult.assignees }),
-              },
-              status: 'pending'
-          };
-          const finalAiMessage = { ...aiMessage, timestamp: serverTimestamp(), tempId: aiTempId };
+          const now = Date.now();
+          // Rate limit: 1 minute cooldown
+          if (now - lastIssueDetectionTime < 60000) {
+              const warningTempId = `temp_warn_${now}`;
+              const warningMessage: Omit<Message, 'id' | 'timestamp'> = {
+                  sender: '0cto AI',
+                  senderId: 'ai_assistant',
+                  avatarUrl: '/brain-circuit.svg',
+                  text: '⚠️ **Spam Protection**: You are generating issues too quickly. Please wait a moment before reporting another issue.',
+                  isSystemMessage: true,
+                  systemMessageType: 'generic', // Using generic for simple text alerts
+                  systemMessageData: [],
+              };
+              await addDoc(messagesRef, { ...warningMessage, timestamp: serverTimestamp(), tempId: warningTempId });
+          } else {
+              setLastIssueDetectionTime(now);
+              
+              const aiTempId = `temp_ai_${Date.now()}`;
+              const aiMessage: Omit<Message, 'id' | 'timestamp'> = {
+                  sender: '0cto AI',
+                  senderId: 'ai_assistant',
+                  avatarUrl: '/brain-circuit.svg',
+                  text: `I've detected a potential issue: **${detectionResult.title}**${detectionResult.assignees && detectionResult.assignees.length > 0 ? `\n\nSuggested assignees: ${detectionResult.assignees.map(a => `@${a}`).join(', ')}` : ''}`,
+                  isIssue: true,
+                  issueDetails: {
+                      title: detectionResult.title,
+                      description: detectionResult.description,
+                      priority: detectionResult.priority,
+                      ...(detectionResult.assignees && detectionResult.assignees.length > 0 && { assignees: detectionResult.assignees }),
+                  },
+                  status: 'pending'
+              };
+              const finalAiMessage = { ...aiMessage, timestamp: serverTimestamp(), tempId: aiTempId };
 
-          const tempOptimisticAiMessage: Message = {
-            ...aiMessage,
-            id: aiTempId,
-            timestamp: { seconds: Date.now() / 1000 + 1, nanoseconds: 0 },
-            tempId: aiTempId,
+              const tempOptimisticAiMessage: Message = {
+                ...aiMessage,
+                id: aiTempId,
+                timestamp: { seconds: Date.now() / 1000 + 1, nanoseconds: 0 },
+                tempId: aiTempId,
+              }
+              setOptimisticMessages(prev => [...prev, tempOptimisticAiMessage]);
+              await addDoc(messagesRef, finalAiMessage);
           }
-          setOptimisticMessages(prev => [...prev, tempOptimisticAiMessage]);
-          await addDoc(messagesRef, finalAiMessage);
       }
     } catch (error) {
       console.error('Error sending message or detecting issue:', error);

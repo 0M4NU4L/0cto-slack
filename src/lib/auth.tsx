@@ -50,8 +50,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGitHub = async () => {
     // Use direct GitHub OAuth instead of Firebase Auth
-    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || 'Ov23liay5Sgf2MtsWEtz';
-    const redirectUri = `${window.location.origin}/api/auth/github/callback`;
+    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
+    if (!clientId) {
+      console.error("GitHub Client ID not found");
+      return;
+    }
+
+    // Use the configured app URL to ensure it matches GitHub settings exactly
+    // This avoids issues where window.location.origin might be 127.0.0.1 vs localhost
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    const redirectUri = `${baseUrl}/api/auth/github/callback`;
     const scope = 'repo user:email read:org';
     
     const githubAuthUrl = new URL('https://github.com/login/oauth/authorize');
