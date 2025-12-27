@@ -268,7 +268,7 @@ export function KanbanBoard({ repoFullName, aiIssues = [], onIssueMove, classNam
           }
 
           // mark seen
-          seenIds.current.add(mapped.id);
+          // seenIds.current.add(mapped.id);
         }
 
         return next;

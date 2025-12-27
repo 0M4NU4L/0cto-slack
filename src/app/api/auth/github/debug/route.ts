@@ -5,7 +5,7 @@ export async function GET() {
     ? `https://${process.env.VERCEL_URL}` 
     : process.env.NEXTAUTH_URL || 'http://localhost:9002';
   
-  const redirectUri = `${baseUrl}/api/auth/github/slack`;
+  const redirectUri = `${baseUrl}/api/auth/github/callback`;
   
   return NextResponse.json({
     environment: process.env.NODE_ENV,

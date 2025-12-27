@@ -14,7 +14,9 @@ export async function GET(req: NextRequest) {
   // GitHub OAuth parameters
   const clientId = process.env.GITHUB_CLIENT_ID;
   const baseUrl = (process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
-  const redirectUri = `${baseUrl}/api/auth/github/slack`;
+  // Use the standard callback URL to avoid "redirect_uri mismatch" errors
+  // GitHub Apps only allow ONE callback URL, so we must use the same one for both web and Slack flows
+  const redirectUri = `${baseUrl}/api/auth/github/callback`;
   
   // Encode Slack user info in state parameter
   const state = encodeURIComponent(JSON.stringify({

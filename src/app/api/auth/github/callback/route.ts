@@ -57,6 +57,53 @@ export async function GET(req: NextRequest) {
 
     const userData = await userResponse.json();
 
+    // Check if this is a Slack OAuth flow (state contains slack_user_id)
+    let isSlackFlow = false;
+    if (state) {
+      try {
+        // Decode state if it's URL encoded
+        const decodedState = decodeURIComponent(state);
+        const stateData = JSON.parse(decodedState);
+        
+        if (stateData.slack_user_id) {
+          isSlackFlow = true;
+          console.log('Detected Slack OAuth flow for user:', stateData.slack_user_id);
+          
+          // Store GitHub token for Slack user
+          const { slackUserService } = await import('@/lib/slack-user-service');
+          await slackUserService.storeGitHubAuth(stateData.slack_user_id, {
+            access_token: accessToken,
+            github_user: userData,
+          });
+
+          // Notify user in Slack
+          try {
+            const { slackAIService } = await import('@/lib/slack-ai-service');
+            const targetChannel = stateData.channel_id || stateData.slack_user_id;
+            
+            await slackAIService.sendMessage(
+              targetChannel,
+              'GitHub Connected Successfully!',
+              [
+                {
+                  type: 'section',
+                  text: {
+                    type: 'mrkdwn',
+                    text: `✅ *GitHub Connected Successfully!*\n\n🔗 **Account:** ${userData.login}\n📧 **Email:** ${userData.email || 'Not provided'}`
+                  }
+                }
+              ]
+            );
+          } catch (e) {
+            console.error('Failed to send Slack notification:', e);
+          }
+        }
+      } catch (e) {
+        // Not a JSON state or not a Slack flow, ignore
+        console.log('State is not valid JSON or not Slack flow:', e);
+      }
+    }
+
     // Create HTML page that stores token and redirects
     const html = `
 <!DOCTYPE html>
@@ -96,7 +143,7 @@ export async function GET(req: NextRequest) {
   <div class="container">
     <div class="spinner"></div>
     <h2>Authentication successful!</h2>
-    <p>Redirecting to dashboard...</p>
+    <p>${isSlackFlow ? 'You can close this window and return to Slack.' : 'Redirecting to dashboard...'}</p>
   </div>
   <script type="module">
     // Store tokens in sessionStorage
@@ -124,15 +171,15 @@ export async function GET(req: NextRequest) {
         console.log('Firebase auth successful');
         // Redirect to dashboard after Firebase auth
         setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 500);
+          ${isSlackFlow ? 'window.close();' : "window.location.href = '/dashboard';"}
+        }, 1500);
       })
       .catch((error) => {
         console.error('Firebase auth error:', error);
         // Still redirect to dashboard even if Firebase fails
         setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 500);
+          ${isSlackFlow ? 'window.close();' : "window.location.href = '/dashboard';"}
+        }, 1500);
       });
   </script>
 </body>

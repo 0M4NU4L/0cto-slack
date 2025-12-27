@@ -31,7 +31,7 @@ This guide will help you set up GitHub OAuth authentication for your 0cto Slack 
    Application name: 0cto Bot
    Homepage URL: https://devx-rho.vercel.app
    Application description: GitHub integration for 0cto Slack bot
-   Authorization callback URL: https://devx-rho.vercel.app/api/auth/github/slack
+   Authorization callback URL: https://devx-rho.vercel.app/api/auth/github/callback
    ```
 
 4. **Click "Register application"**
@@ -69,7 +69,7 @@ NEXTAUTH_URL=https://devx-rho.vercel.app
    ```
    Application name: 0cto Bot (Development)
    Homepage URL: http://localhost:9002
-   Authorization callback URL: http://localhost:9002/api/auth/github/slack
+   Authorization callback URL: http://localhost:9002/api/auth/github/callback
    ```
 
 2. **Update your local `.env` file:**
@@ -122,10 +122,10 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:809320154283:web:eb935fcf5224cd011fe3ee
 2. **Bot checks** if user has GitHub token in Firebase
 3. **If not authenticated:**
    - Shows "Connect GitHub Account" button
-   - Button redirects to: `https://devx-rho.vercel.app/api/auth/github/slack?user_id=U123&channel_id=C456`
+   - Button redirects to: `https://devx-rho.vercel.app/api/auth/github/connect?user_id=U123&channel_id=C456`
 4. **OAuth redirect** to GitHub with proper parameters
 5. **User authorizes** 0cto app on GitHub
-6. **GitHub redirects back** to your callback URL with authorization code
+6. **GitHub redirects back** to your callback URL (`/api/auth/github/callback`) with authorization code
 7. **Your app exchanges code** for access token
 8. **Token stored** in Firebase with Slack user ID mapping
 9. **Success message** sent back to Slack
@@ -134,7 +134,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:809320154283:web:eb935fcf5224cd011fe3ee
 ```
 https://github.com/login/oauth/authorize?
   client_id=your_client_id&
-  redirect_uri=https://devx-rho.vercel.app/api/auth/github/slack&
+  redirect_uri=https://devx-rho.vercel.app/api/auth/github/callback&
   scope=repo,user:email&
   state={"slack_user_id":"U123","channel_id":"C456","timestamp":1234567890}
 ```
@@ -152,7 +152,7 @@ Expected response:
 {
   "environment": "production",
   "baseUrl": "https://devx-rho.vercel.app",
-  "redirectUri": "https://devx-rho.vercel.app/api/auth/github/slack",
+  "redirectUri": "https://devx-rho.vercel.app/api/auth/github/callback",
   "githubClientId": "Ov23li33WyHSeDnRbSSL",
   "hasGithubSecret": true
 }
@@ -174,7 +174,7 @@ Expected response:
 ### Common Issues & Solutions:
 
 **1. "redirect_uri_mismatch" Error:**
-- Check that your GitHub app's callback URL exactly matches: `https://devx-rho.vercel.app/api/auth/github/slack`
+- Check that your GitHub app's callback URL exactly matches: `https://devx-rho.vercel.app/api/auth/github/callback`
 - No trailing slashes
 - Correct protocol (https vs http)
 
