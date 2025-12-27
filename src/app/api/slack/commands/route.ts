@@ -225,6 +225,7 @@ export async function POST(req: NextRequest) {
 
         case 'cleanup':
           if (text?.includes('branches')) {
+            try {
              const { branchCleanupService } = await import('@/lib/branch-cleanup-service');
              const staleBranches = await branchCleanupService.getStaleBranches();
              
@@ -272,6 +273,13 @@ export async function POST(req: NextRequest) {
                text: `Found ${staleBranches.length} stale branches.`,
                blocks: blocks
              });
+            } catch (error) {
+              console.error('Error in cleanup command:', error);
+              return NextResponse.json({
+                response_type: 'ephemeral',
+                text: `❌ Error running cleanup: ${error instanceof Error ? error.message : 'Unknown error'}`
+              });
+            }
           }
           break;
 
