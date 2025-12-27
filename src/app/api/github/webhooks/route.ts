@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { branchCleanupService } from '@/lib/branch-cleanup-service';
 import { Timestamp } from 'firebase/firestore';
 
+export async function GET() {
+  return NextResponse.json({ status: 'alive', message: 'GitHub Webhook Endpoint' });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const event = req.headers.get('x-github-event');

@@ -1,0 +1,17 @@
+name: Branch Cleanup Cron
+
+on:
+  schedule:
+    # Run every day at 00:00 UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Branch Cleanup Endpoint
+        run: |
+          curl -X GET ${{ secrets.NEXTAUTH_URL }}/api/cron/branch-cleanup \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          --fail
