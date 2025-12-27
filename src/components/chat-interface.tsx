@@ -539,8 +539,8 @@ export function ChatInterface({ repoFullName, channelId }: ChatInterfaceProps) {
   }
 
   // Derive AI-created issues from chat messages (for Kanban intake)
-  const aiIssuesForKanban: Array<Pick<KanbanIssue, 'id' | 'title' | 'summary' | 'priority' | 'assignee'>> = useMemo(() => {
-    const issues: Array<Pick<KanbanIssue, 'id' | 'title' | 'summary' | 'priority' | 'assignee'>> = [];
+  const aiIssuesForKanban: Array<Pick<KanbanIssue, 'id' | 'title' | 'summary' | 'priority' | 'assignee' | 'column'>> = useMemo(() => {
+    const issues: Array<Pick<KanbanIssue, 'id' | 'title' | 'summary' | 'priority' | 'assignee' | 'column'>> = [];
     for (const msg of messages) {
       if (msg.isIssue && msg.issueDetails?.title) {
         const priority: any = (msg.issueDetails.priority || 'medium').toString().toLowerCase();
@@ -552,11 +552,27 @@ export function ChatInterface({ repoFullName, channelId }: ChatInterfaceProps) {
           summary: msg.issueDetails.description || undefined,
           priority: normalized,
           assignee: assigneeName ? { name: assigneeName } : undefined,
+          column: msg.kanbanColumn || 'todo',
         });
       }
     }
     return issues;
   }, [messages]);
+
+  const handleIssueMove = async (issueId: string, newColumn: 'todo' | 'in_progress' | 'done') => {
+      if (!messagesRef) return;
+      try {
+          const msgDocRef = doc(messagesRef, issueId);
+          await updateDoc(msgDocRef, { kanbanColumn: newColumn });
+      } catch (e) {
+          console.error("Failed to update issue column", e);
+          toast({
+              variant: 'destructive',
+              title: 'Update Failed',
+              description: 'Could not move issue.'
+          });
+      }
+  };
 
   const sidePanelOpen = isKanbanOpen && isMdUp;
   const sheetOpen = isKanbanOpen && !isMdUp;
@@ -756,7 +772,12 @@ export function ChatInterface({ repoFullName, channelId }: ChatInterfaceProps) {
       {sidePanelOpen && (
         <div className="hidden md:flex w-1/2 bg-black/20 backdrop-blur-sm animate-in slide-in-from-right-10 duration-300">
           <ErrorBoundary>
-            <KanbanBoard repoFullName={repoFullName} aiIssues={aiIssuesForKanban} className="w-full h-full p-4" />
+            <KanbanBoard 
+                repoFullName={repoFullName} 
+                aiIssues={aiIssuesForKanban} 
+                onIssueMove={handleIssueMove}
+                className="w-full h-full p-4" 
+            />
           </ErrorBoundary>
         </div>
       )}
@@ -768,7 +789,11 @@ export function ChatInterface({ repoFullName, channelId }: ChatInterfaceProps) {
           </SheetHeader>
           <div className="mt-4 h-full">
             <ErrorBoundary>
-              <KanbanBoard repoFullName={repoFullName} aiIssues={aiIssuesForKanban} />
+              <KanbanBoard 
+                repoFullName={repoFullName} 
+                aiIssues={aiIssuesForKanban} 
+                onIssueMove={handleIssueMove}
+              />
             </ErrorBoundary>
           </div>
         </SheetContent>

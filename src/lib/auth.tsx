@@ -58,7 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Use the configured app URL to ensure it matches GitHub settings exactly
     // This avoids issues where window.location.origin might be 127.0.0.1 vs localhost
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    const rawBaseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    // Remove trailing slash if present to avoid double slashes in redirectUri
+    const baseUrl = rawBaseUrl.replace(/\/$/, '');
     const redirectUri = `${baseUrl}/api/auth/github/callback`;
     const scope = 'repo user:email read:org';
     

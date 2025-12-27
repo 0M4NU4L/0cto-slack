@@ -32,7 +32,8 @@ export type KanbanIssue = {
 export type KanbanBoardProps = {
   repoFullName: string;
   // Optional: AI issues derived from chat messages. The board will merge unseen ones into To Do.
-  aiIssues?: Array<Pick<KanbanIssue, "id" | "title" | "summary" | "priority" | "assignee">>;
+  aiIssues?: Array<Pick<KanbanIssue, "id" | "title" | "summary" | "priority" | "assignee" | "column">>;
+  onIssueMove?: (issueId: string, newColumn: 'todo' | 'in_progress' | 'done') => void;
   className?: string;
 };
 
@@ -57,7 +58,7 @@ function PriorityBadge({ priority }: { priority: Priority }) {
 // Mock placeholder issues to demonstrate layout
 const MOCK_ISSUES: KanbanIssue[] = [];
 
-export function KanbanBoard({ repoFullName, aiIssues = [], className }: KanbanBoardProps) {
+export function KanbanBoard({ repoFullName, aiIssues = [], onIssueMove, className }: KanbanBoardProps) {
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'todo' | 'in_progress' | 'done'>('todo');
@@ -77,31 +78,35 @@ export function KanbanBoard({ repoFullName, aiIssues = [], className }: KanbanBo
     return initial;
   });
 
-  // Track seen issue IDs to avoid duplicates
-  const seenIds = useRef<Set<string>>(new Set(MOCK_ISSUES.map(i => i.id)));
-
-  // Merge incoming AI issues (from chat) into To Do if unseen
+  // Sync board with aiIssues (Real-time sync)
   useEffect(() => {
-    if (!aiIssues || aiIssues.length === 0) return;
+    if (!aiIssues) return;
+    
     setBoard(prev => {
-      const next = { ...prev, todo: [...prev.todo] };
-      let changed = false;
-      for (const ai of aiIssues) {
-        if (!seenIds.current.has(ai.id)) {
-          seenIds.current.add(ai.id);
-          next.todo.unshift({
-            id: ai.id,
-            title: ai.title,
-            summary: clampSummary(ai.summary),
-            assignee: ai.assignee || null,
-            priority: ai.priority || "medium",
-            column: "todo",
-            source: "ai",
-          });
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
+        const newBoard: Record<string, KanbanIssue[]> = { todo: [], in_progress: [], done: [] };
+        
+        aiIssues.forEach(ai => {
+            const col = ai.column || 'todo';
+            if (newBoard[col]) {
+                newBoard[col].push({
+                    id: ai.id,
+                    title: ai.title,
+                    summary: clampSummary(ai.summary),
+                    assignee: ai.assignee || null,
+                    priority: ai.priority || "medium",
+                    column: col,
+                    source: "ai",
+                });
+            }
+        });
+        
+        // Sort by priority (high > medium > low) to keep order stable
+        const priorityWeight = { high: 3, medium: 2, low: 1 };
+        Object.keys(newBoard).forEach(key => {
+            newBoard[key].sort((a, b) => priorityWeight[b.priority] - priorityWeight[a.priority]);
+        });
+
+        return newBoard;
     });
   }, [aiIssues]);
 
@@ -148,6 +153,12 @@ export function KanbanBoard({ repoFullName, aiIssues = [], className }: KanbanBo
         [srcCol]: srcItems,
         [dstCol]: dstItems,
       });
+
+      // Notify parent of move
+      if (onIssueMove) {
+          onIssueMove(moved.id, dstCol as "todo" | "in_progress" | "done");
+      }
+
     } catch (error) {
       console.error('Error in drag operation:', error);
     }

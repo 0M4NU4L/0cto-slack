@@ -23,6 +23,7 @@ export type Message = {
     };
     issueUrl?: string; // URL of the created GitHub issue
     status?: 'pending' | 'completed'; // Status of the AI suggestion
+    kanbanColumn?: 'todo' | 'in_progress' | 'done'; // Kanban status
     isSystemMessage?: boolean;
     systemMessageType?: 'issue-list' | 'pr-list' | 'pr-verification' | 'security-alert' | 'incident-alert' | 'generic';
     systemMessageData?: any[];

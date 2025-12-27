@@ -58,9 +58,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing user_id parameter' }, { status: 400 });
     }
 
-    // ALWAYS use production URL for OAuth callback
-    // This ensures consistency with GitHub OAuth app registration
-    const redirectUri = 'https://devx-rho.vercel.app/api/auth/github/slack';
+    // Use configured app URL
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
+    const redirectUri = `${baseUrl}/api/auth/github/slack`;
     
     console.log('🔗 GitHub OAuth redirect setup:', {
       redirectUri,

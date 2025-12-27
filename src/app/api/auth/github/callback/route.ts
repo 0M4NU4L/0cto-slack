@@ -10,14 +10,17 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get('state');
   const error = searchParams.get('error');
 
+  // Ensure baseUrl doesn't have a trailing slash
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
+
   // Handle OAuth errors
   if (error) {
     console.error('GitHub OAuth error:', error);
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=${error}`);
+    return NextResponse.redirect(`${baseUrl}/?error=${error}`);
   }
 
   if (!code) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=no_code`);
+    return NextResponse.redirect(`${baseUrl}/?error=no_code`);
   }
 
   try {
@@ -39,7 +42,7 @@ export async function GET(req: NextRequest) {
 
     if (tokenData.error) {
       console.error('GitHub token exchange error:', tokenData);
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=token_exchange_failed`);
+      return NextResponse.redirect(`${baseUrl}/?error=token_exchange_failed`);
     }
 
     const accessToken = tokenData.access_token;
@@ -144,6 +147,6 @@ export async function GET(req: NextRequest) {
 
   } catch (error) {
     console.error('GitHub OAuth callback error:', error);
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/?error=callback_failed`);
+    return NextResponse.redirect(`${baseUrl}/?error=callback_failed`);
   }
 }

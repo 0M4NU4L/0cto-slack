@@ -341,7 +341,7 @@ export class SlackAIService {
                 },
                 action_id: 'connect_github',
                 style: 'primary',
-                url: `${process.env.NEXTAUTH_URL}/auth/github?redirect=slack&user_id=${userId}`
+                url: `${(process.env.NEXTAUTH_URL || '').replace(/\/$/, '')}/api/auth/github/slack?user_id=${userId}`
               },
               {
                 type: 'button',

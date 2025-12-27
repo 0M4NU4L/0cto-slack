@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
 
   // GitHub OAuth parameters
   const clientId = process.env.GITHUB_CLIENT_ID;
-  const redirectUri = `${process.env.NEXTAUTH_URL}/api/auth/github/slack`;
+  const baseUrl = (process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
+  const redirectUri = `${baseUrl}/api/auth/github/slack`;
   
   // Encode Slack user info in state parameter
   const state = encodeURIComponent(JSON.stringify({
