@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light mode - keeping it dark-ish for consistency or just mapping to dark */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 263.4 70% 50.4%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 263.4 70% 50.4%;
+    --radius: 0.75rem;
+    
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 260 50% 4%; /* Deep Void */
+    --foreground: 210 40% 98%;
+    
+    --card: 260 50% 6%; /* Slightly lighter void */
+    --card-foreground: 210 40% 98%;
+    
+    --popover: 260 50% 6%;
+    --popover-foreground: 210 40% 98%;
+    
+    --primary: 270 100% 60%; /* Neon Purple */
+    --primary-foreground: 210 40% 98%;
+    
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    
+    --accent: 270 50% 20%; /* Dark Purple Accent */
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 260 30% 15%;
+    --input: 260 30% 15%;
+    --ring: 270 100% 60%;
+    
+    --chart-1: 270 100% 60%;
+    --chart-2: 180 100% 50%; /* Cyan */
+    --chart-3: 300 100% 60%; /* Pink */
+    --chart-4: 220 100% 60%; /* Blue */
+    --chart-5: 40 100% 60%; /* Yellow */
+
+    --sidebar-background: 260 50% 3%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 270 100% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 260 30% 15%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 260 30% 15%;
+    --sidebar-ring: 270 100% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background-image: 
+      radial-gradient(circle at 50% 0%, rgba(120, 50, 255, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 0% 50%, rgba(50, 100, 255, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 100% 50%, rgba(255, 50, 150, 0.1) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl;
+  }
+  .glass-card {
+    @apply bg-card/50 backdrop-blur-md border border-white/5 shadow-lg hover:border-primary/50 transition-colors duration-300;
+  }
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400;
+  }
+  .border-gradient {
+    @apply border-transparent bg-gradient-to-r from-purple-500 to-cyan-500 bg-clip-border;
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "display_information": {
+    "name": "0cto",
+    "description": "AI assistant that analyzes channels, suggests fixes, and helps create GitHub issues.",
+    "background_color": "#2EB67D"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "0cto",
+      "always_online": false
+    },
+    "slash_commands": [
+      {
+        "command": "/0cto",
+        "url": "https://devx-rho.vercel.app/api/slack/commands",
+        "description": "0cto AI assistant",
+        "usage_hint": "analyze | create-issue | list-issues | list-prs | match-pr | suggest-fix | detect-potential | detect-resolution"
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "commands",
+        "chat:write",
+        "channels:history",
+        "channels:read",
+        "users:read"
+      ]
+    }
+  },
+  "settings": {
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://devx-rho.vercel.app/api/slack/interactions"
+    },
+    "event_subscriptions": {
+      "request_url": "https://devx-rho.vercel.app/api/slack/events",
+      "bot_events": [
+        "app_mention",
+        "message.channels"
+      ]
+    },
+    "org_deploy_enabled": false,
+    "is_hosted": false
+  }
+}
