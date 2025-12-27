@@ -40,7 +40,15 @@ export class SlackAIService {
     const data = await response.json();
     
     if (!data.ok) {
-      throw new Error(`Failed to fetch channel history: ${data.error}`);
+      let errorMessage = `Failed to fetch channel history: ${data.error}`;
+      if (data.error === 'channel_not_found') {
+        errorMessage += ' (Bot is not in the channel)';
+      } else if (data.error === 'missing_scope') {
+        errorMessage += ' (Missing channels:history scope)';
+      } else if (data.error === 'invalid_auth') {
+        errorMessage += ' (Invalid Bot Token)';
+      }
+      throw new Error(errorMessage);
     }
 
     return data.messages.reverse(); // Return in chronological order
@@ -141,9 +149,10 @@ export class SlackAIService {
       };
     } catch (error) {
       console.error('Error analyzing channel for issues:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return {
         hasIssue: false,
-        message: '❌ Error analyzing messages. Please try again.',
+        message: `❌ Error analyzing messages: ${errorMessage}`,
       };
     }
   }
