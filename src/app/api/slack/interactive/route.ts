@@ -161,6 +161,70 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({});
       }
 
+      // Handle Keep Branch
+      if (action.action_id === 'keep_branch_action') {
+        const docId = action.value.replace('keep_branch_', '');
+        const { branchCleanupService } = await import('@/lib/branch-cleanup-service');
+        await branchCleanupService.keepBranch(docId);
+        
+        // Update message
+        await fetch('https://slack.com/api/chat.update', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            channel: payload.channel.id,
+            ts: payload.message.ts,
+            text: '🛡️ Branch kept by user.',
+            blocks: [
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: `🛡️ *Branch kept by <@${payload.user.id}>*`
+                }
+              }
+            ]
+          }),
+        });
+        return NextResponse.json({});
+      }
+
+      // Handle Archive Now
+      if (action.action_id === 'archive_branch_now_action') {
+        const docId = action.value.replace('archive_branch_', '');
+        const { branchCleanupService } = await import('@/lib/branch-cleanup-service');
+        
+        // Update message
+        await fetch('https://slack.com/api/chat.update', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.SLACK_BOT_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            channel: payload.channel.id,
+            ts: payload.message.ts,
+            text: '⏳ Archiving branch...',
+            blocks: [
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: `⏳ *Archiving branch requested by <@${payload.user.id}>...*`
+                }
+              }
+            ]
+          }),
+        });
+
+        await branchCleanupService.archiveBranchById(docId);
+
+        return NextResponse.json({});
+      }
+
       // Handle suggested issue creation
       if (action.action_id === 'create_suggested_issue') {
         try {

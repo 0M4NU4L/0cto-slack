@@ -228,7 +228,7 @@ export class SlackAIService {
   /**
    * Send a message to a Slack channel or user
    */
-  async sendMessage(channel: string, text: string, blocks?: any[]): Promise<boolean> {
+  async sendMessage(channel: string, text: string, blocks?: any[]): Promise<any> {
     try {
       const response = await fetch('https://slack.com/api/chat.postMessage', {
         method: 'POST',
@@ -244,7 +244,11 @@ export class SlackAIService {
       });
 
       const data = await response.json();
-      return data.ok;
+      if (!data.ok) {
+        console.error('Slack API error:', data.error);
+        return false;
+      }
+      return data;
     } catch (error) {
       console.error('Error sending Slack message:', error);
       return false;

@@ -82,9 +82,11 @@ export function SlackIntegration({
               <p className="text-gray-600 mb-4">
                 Connect your Slack workspace to start using 0cto in your channels
               </p>
-              <Button>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Connect Slack Workspace
+              <Button asChild>
+                <a href="https://join.slack.com/t/0ctoworkspace/shared_invite/zt-3m35fxvee-rBoe2ud1y8W4ZVBjDybyzA" target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Connect Slack Workspace
+                </a>
               </Button>
             </div>
           )}

@@ -223,6 +223,58 @@ export async function POST(req: NextRequest) {
             });
           }
 
+        case 'cleanup':
+          if (text?.includes('branches')) {
+             const { branchCleanupService } = await import('@/lib/branch-cleanup-service');
+             const staleBranches = await branchCleanupService.getStaleBranches();
+             
+             if (staleBranches.length === 0) {
+               return NextResponse.json({
+                 response_type: 'ephemeral',
+                 text: '🧹 No stale branches found to cleanup.'
+               });
+             }
+             
+             // Build blocks for stale branches
+             const blocks: any[] = [
+               {
+                 type: 'section',
+                 text: {
+                   type: 'mrkdwn',
+                   text: `🧹 *Found ${staleBranches.length} stale branches (merged > 7 days ago)*`
+                 }
+               }
+             ];
+             
+             staleBranches.forEach(branch => {
+               blocks.push({
+                 type: 'section',
+                 text: {
+                   type: 'mrkdwn',
+                   text: `• \`${branch.branch_name}\` (PR #${branch.pr_number}) - Merged ${branch.merged_at.toDate().toLocaleDateString()}`
+                 },
+                 accessory: {
+                   type: 'button',
+                   text: {
+                     type: 'plain_text',
+                     text: 'Archive Now',
+                     emoji: true
+                   },
+                   value: `archive_branch_${branch.id}`,
+                   action_id: 'archive_branch_now_action',
+                   style: 'danger'
+                 }
+               });
+             });
+             
+             return NextResponse.json({
+               response_type: 'ephemeral',
+               text: `Found ${staleBranches.length} stale branches.`,
+               blocks: blocks
+             });
+          }
+          break;
+
         case 'create-issue':
           try {
             console.log('Creating issue for user:', userId);
