@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
 /**
  * GitHub OAuth callback specifically for Slack integrations
@@ -6,22 +6,23 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const code = searchParams.get('code');
-  const state = searchParams.get('state');
-  const error = searchParams.get('error');
-  const user_id = searchParams.get('user_id'); // Direct from button URL
-  const channel_id = searchParams.get('channel_id'); // Direct from button URL
+  const code = searchParams.get("code");
+  const state = searchParams.get("state");
+  const error = searchParams.get("error");
+  const user_id = searchParams.get("user_id"); // Direct from button URL
+  const channel_id = searchParams.get("channel_id"); // Direct from button URL
 
-  console.log('GitHub OAuth callback:', { 
-    hasCode: !!code, 
-    hasState: !!state, 
-    error, 
-    user_id, 
-    channel_id 
+  console.log("GitHub OAuth callback:", {
+    hasCode: !!code,
+    hasState: !!state,
+    error,
+    user_id,
+    channel_id,
   });
 
   if (error) {
-    return new Response(`
+    return new Response(
+      `
       <!DOCTYPE html>
       <html>
         <head><title>GitHub Connection Failed</title></head>
@@ -32,14 +33,16 @@ export async function GET(req: NextRequest) {
           <script>setTimeout(() => window.close(), 5000);</script>
         </body>
       </html>
-    `, { headers: { 'Content-Type': 'text/html' } });
+    `,
+      { headers: { "Content-Type": "text/html" } }
+    );
   }
 
   // If no code, redirect to GitHub OAuth
   if (!code) {
     const slackUserId = user_id;
     const channelId = channel_id;
-    
+
     // If we don't have a direct user_id (button URL), try to extract it from a provided `state` query
     let finalSlackUserId = slackUserId;
     let finalChannelId = channelId;
@@ -55,22 +58,31 @@ export async function GET(req: NextRequest) {
     }
 
     if (!finalSlackUserId) {
-      return NextResponse.json({ error: 'Missing user_id parameter' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing user_id parameter" },
+        { status: 400 }
+      );
     }
 
     // Use configured app URL
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
-    const redirectUri = `${baseUrl}/api/auth/github/slack`;
-    
-    console.log('🔗 GitHub OAuth redirect setup:', {
+    const baseUrl = (
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXTAUTH_URL ||
+      ""
+    ).replace(/\/$/, "");
+    // Use the standard callback URL to avoid "redirect_uri mismatch" errors
+    // GitHub Apps only allow ONE callback URL, so we use the same one for both web and Slack flows
+    const redirectUri = `${baseUrl}/api/auth/github/callback`;
+
+    console.log("🔗 GitHub OAuth redirect setup:", {
       redirectUri,
-      clientId: process.env.GITHUB_CLIENT_ID
+      clientId: process.env.GITHUB_CLIENT_ID,
     });
 
-    const githubOAuthUrl = new URL('https://github.com/login/oauth/authorize');
-    githubOAuthUrl.searchParams.set('client_id', process.env.GITHUB_CLIENT_ID!);
-    githubOAuthUrl.searchParams.set('redirect_uri', redirectUri);
-    githubOAuthUrl.searchParams.set('scope', 'repo,user:email');
+    const githubOAuthUrl = new URL("https://github.com/login/oauth/authorize");
+    githubOAuthUrl.searchParams.set("client_id", process.env.GITHUB_CLIENT_ID!);
+    githubOAuthUrl.searchParams.set("redirect_uri", redirectUri);
+    githubOAuthUrl.searchParams.set("scope", "repo,user:email");
 
     // Build state payload with Slack user info
     const statePayload = {
@@ -79,38 +91,43 @@ export async function GET(req: NextRequest) {
       timestamp: Date.now(),
     };
 
-    githubOAuthUrl.searchParams.set('state', JSON.stringify(statePayload));
+    githubOAuthUrl.searchParams.set("state", JSON.stringify(statePayload));
 
-    console.log('Redirecting to GitHub OAuth:', githubOAuthUrl.toString());
+    console.log("Redirecting to GitHub OAuth:", githubOAuthUrl.toString());
     return NextResponse.redirect(githubOAuthUrl.toString());
   }
 
   try {
     // Exchange code for access token
-    const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        client_id: process.env.GITHUB_CLIENT_ID!,
-        client_secret: process.env.GITHUB_CLIENT_SECRET!,
-        code,
-      }),
-    });
+    const tokenResponse = await fetch(
+      "https://github.com/login/oauth/access_token",
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          client_id: process.env.GITHUB_CLIENT_ID!,
+          client_secret: process.env.GITHUB_CLIENT_SECRET!,
+          code,
+        }),
+      }
+    );
 
     const tokenData = await tokenResponse.json();
 
     if (tokenData.error) {
-      throw new Error(tokenData.error_description || 'Failed to get access token');
+      throw new Error(
+        tokenData.error_description || "Failed to get access token"
+      );
     }
 
     // Get user information from GitHub
-    const userResponse = await fetch('https://api.github.com/user', {
+    const userResponse = await fetch("https://api.github.com/user", {
       headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
-        'Accept': 'application/vnd.github.v3+json',
+        Authorization: `Bearer ${tokenData.access_token}`,
+        Accept: "application/vnd.github.v3+json",
       },
     });
 
@@ -121,60 +138,61 @@ export async function GET(req: NextRequest) {
     const slackUserId = stateData.slack_user_id || user_id;
     const channelId = stateData.channel_id || channel_id;
 
-    console.log('Processing GitHub OAuth success:', { 
-      slackUserId, 
-      channelId, 
-      githubUsername: userData.login 
+    console.log("Processing GitHub OAuth success:", {
+      slackUserId,
+      channelId,
+      githubUsername: userData.login,
     });
 
     if (slackUserId) {
       try {
         // Store the GitHub token and user info in Firestore
-        const { slackUserService } = await import('@/lib/slack-user-service');
+        const { slackUserService } = await import("@/lib/slack-user-service");
         await slackUserService.storeGitHubAuth(slackUserId, {
           access_token: tokenData.access_token,
           github_user: userData,
         });
 
-        console.log('GitHub auth stored successfully for user:', slackUserId);
+        console.log("GitHub auth stored successfully for user:", slackUserId);
 
         // Send a success message to the Slack channel or user
         try {
-          const { slackAIService } = await import('@/lib/slack-ai-service');
+          const { slackAIService } = await import("@/lib/slack-ai-service");
           const targetChannel = channelId || slackUserId;
-          
-          await slackAIService.sendMessage(
-            targetChannel,
-            '',
-            [
-              {
-                type: 'section',
-                text: {
-                  type: 'mrkdwn',
-                  text: `✅ *GitHub Connected Successfully!*\n\n🔗 **Account:** ${userData.login}\n📧 **Email:** ${userData.email || 'Not provided'}\n📁 **Public Repos:** ${userData.public_repos || 0}`
-                }
+
+          await slackAIService.sendMessage(targetChannel, "", [
+            {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `✅ *GitHub Connected Successfully!*\n\n🔗 **Account:** ${
+                  userData.login
+                }\n📧 **Email:** ${
+                  userData.email || "Not provided"
+                }\n📁 **Public Repos:** ${userData.public_repos || 0}`,
               },
-              {
-                type: 'section',
-                text: {
-                  type: 'mrkdwn', 
-                  text: '🎉 You can now create GitHub issues directly from Slack!\n\nTry: `/0cto create-issue`'
-                }
-              }
-            ]
-          );
-          console.log('Success message sent to Slack');
+            },
+            {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: "🎉 You can now create GitHub issues directly from Slack!\n\nTry: `/0cto create-issue`",
+              },
+            },
+          ]);
+          console.log("Success message sent to Slack");
         } catch (slackError) {
-          console.error('Failed to send Slack message:', slackError);
+          console.error("Failed to send Slack message:", slackError);
         }
       } catch (storageError) {
-        console.error('Failed to store GitHub auth:', storageError);
+        console.error("Failed to store GitHub auth:", storageError);
         throw storageError;
       }
     }
 
     // Return a success page
-    return new Response(`
+    return new Response(
+      `
       <!DOCTYPE html>
       <html>
         <head>
@@ -228,7 +246,7 @@ export async function GET(req: NextRequest) {
             <h1>GitHub Connected!</h1>
             <div class="github-info">
               <strong>${userData.login}</strong><br>
-              ${userData.email ? `📧 ${userData.email}` : ''}
+              ${userData.email ? `📧 ${userData.email}` : ""}
             </div>
             <p>Your GitHub account has been successfully connected to 0cto.</p>
             <p>You can now close this window and return to Slack.</p>
@@ -240,28 +258,34 @@ export async function GET(req: NextRequest) {
           </div>
         </body>
       </html>
-    `, {
-      headers: { 'Content-Type': 'text/html' },
-    });
-
+    `,
+      {
+        headers: { "Content-Type": "text/html" },
+      }
+    );
   } catch (error) {
-    console.error('GitHub OAuth error:', error);
-    
-    return new Response(`
+    console.error("GitHub OAuth error:", error);
+
+    return new Response(
+      `
       <!DOCTYPE html>
       <html>
         <head><title>Connection Error</title></head>
         <body style="font-family: Arial; text-align: center; padding: 50px;">
           <h1>❌ Connection Error</h1>
           <p>Failed to authenticate with GitHub</p>
-          <p style="color: #666; font-size: 14px;">${error instanceof Error ? error.message : 'Unknown error'}</p>
+          <p style="color: #666; font-size: 14px;">${
+            error instanceof Error ? error.message : "Unknown error"
+          }</p>
           <p>Please try again from Slack.</p>
           <script>setTimeout(() => window.close(), 5000);</script>
         </body>
       </html>
-    `, {
-      headers: { 'Content-Type': 'text/html' },
-      status: 500
-    });
+    `,
+      {
+        headers: { "Content-Type": "text/html" },
+        status: 500,
+      }
+    );
   }
 }
