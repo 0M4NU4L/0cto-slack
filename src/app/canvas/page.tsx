@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Github, Loader2, ArrowLeft, AlertCircle } from "lucide-react";
+import { Github, Loader2, ArrowLeft, AlertCircle, GitBranch, GitPullRequest, FolderTree, Network } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import OctokitClient from "@/lib/github/octokit-client";
@@ -25,9 +25,18 @@ import {
 } from "@/lib/parser/babel-parser";
 import { buildGraph, type FileNodeData } from "@/lib/graph/graph-builder";
 import { applyDagreLayout } from "@/lib/layout/dagre-layout";
+import { createFileTreeGraph } from "@/lib/layout/tree-layout";
+import { createTimelineGraph, createPRTimelineGraph } from "@/lib/layout/timeline-layout";
+import { fetchBranchesWithCommits, type BranchWithCommits } from "@/lib/github/branch-fetcher";
+import { fetchPullRequests, fetchPRDetails, type PullRequest, type PRDetails } from "@/lib/github/pr-fetcher";
 import RepoCache from "@/lib/cache/storage";
 import FileNode from "@/components/canvas/FileNode";
+import FileTreeNode from "@/components/canvas/FileTreeNode";
+import PRNode from "@/components/canvas/PRNode";
+import BranchNode from "@/components/canvas/BranchNode";
+import CommitNode from "@/components/canvas/CommitNode";
 import FilePanel from "@/components/canvas/FilePanel";
+import PRPanel from "@/components/canvas/PRPanel";
 import type { Node as FlowNode, NodeTypes } from "reactflow";
 
 // Dynamically import React Flow to avoid SSR issues
@@ -58,7 +67,13 @@ import "reactflow/dist/style.css";
 
 const nodeTypes: NodeTypes = {
   fileNode: FileNode,
+  fileTreeNode: FileTreeNode,
+  prNode: PRNode,
+  branchNode: BranchNode,
+  commitNode: CommitNode,
 };
+
+type ViewMode = "dependencies" | "files" | "prs" | "timeline";
 
 function CanvasContent() {
   const searchParams = useSearchParams();
@@ -95,6 +110,16 @@ function CanvasContent() {
   >([]);
   const [selectedRepo, setSelectedRepo] = useState("");
   const [loadingRepos, setLoadingRepos] = useState(false);
+
+  // View mode state
+  const [viewMode, setViewMode] = useState<ViewMode>("dependencies");
+  const [currentRepoInfo, setCurrentRepoInfo] = useState<{ owner: string; repo: string } | null>(null);
+  
+  // Data for different views
+  const [prList, setPRList] = useState<PullRequest[]>([]);
+  const [selectedPR, setSelectedPR] = useState<PRDetails | null>(null);
+  const [branchesWithCommits, setBranchesWithCommits] = useState<BranchWithCommits[]>([]);
+  const [treeFiles, setTreeFiles] = useState<Array<{ path: string; type: "file" | "dir"; size?: number }>>([]);
 
   useEffect(() => {
     // Get token from localStorage (set during OAuth flow)
@@ -281,6 +306,10 @@ function CanvasContent() {
       setFileContents(contents);
       setParsedData(parsedFiles);
 
+      // Store tree files for file structure view
+      setTreeFiles(treeData.files.map(f => ({ path: f.path, type: f.type, size: f.size })));
+      setCurrentRepoInfo({ owner, repo });
+
       // Build graph
       setProgress({ current: 0, total: 0, message: "Building graph..." });
       const graphData = buildGraph(parsedFiles);
@@ -313,20 +342,144 @@ function CanvasContent() {
     }
   };
 
+  // Handle view mode changes
+  const handleViewModeChange = async (mode: ViewMode) => {
+    if (!currentRepoInfo) {
+      console.log("No currentRepoInfo available, cannot switch views");
+      setError("Please analyze a repository first");
+      return;
+    }
+    
+    // Store current nodes in case we need to restore them on error
+    const previousNodes = nodes;
+    const previousEdges = edges;
+    const previousMode = viewMode;
+    
+    setViewMode(mode);
+    setError("");
+    
+    const { owner, repo } = currentRepoInfo;
+    console.log(`Switching to ${mode} view for ${owner}/${repo}`);
+
+    try {
+      if (mode === "files") {
+        // Create file tree visualization
+        setLoading(true);
+        setProgress({ current: 0, total: 0, message: "Building file tree..." });
+        
+        if (treeFiles.length === 0) {
+          throw new Error("No file tree data available. Please re-analyze the repository.");
+        }
+        
+        const { nodes: treeNodes, edges: treeEdges } = createFileTreeGraph(treeFiles);
+        setNodes(treeNodes);
+        setEdges(treeEdges);
+        setLoading(false);
+      } else if (mode === "prs") {
+        // Fetch and display PRs
+        setLoading(true);
+        setProgress({ current: 0, total: 0, message: "Fetching pull requests..." });
+        console.log(`Fetching PRs for ${owner}/${repo}...`);
+        
+        const prs = await fetchPullRequests(owner, repo, "all", 30);
+        console.log(`Fetched ${prs.length} PRs`);
+        
+        if (prs.length === 0) {
+          setNodes([]);
+          setEdges([]);
+          setLoading(false);
+          setError("No pull requests found in this repository");
+          return;
+        }
+        
+        setPRList(prs);
+        const { nodes: prNodes, edges: prEdges } = createPRTimelineGraph(prs);
+        console.log(`Created ${prNodes.length} PR nodes`);
+        setNodes(prNodes);
+        setEdges(prEdges);
+        setLoading(false);
+      } else if (mode === "timeline") {
+        // Fetch branches and commits
+        setLoading(true);
+        setProgress({ current: 0, total: 0, message: "Fetching branches and commits..." });
+        console.log(`Fetching branches for ${owner}/${repo}...`);
+        
+        const branchData = await fetchBranchesWithCommits(owner, repo, 15);
+        console.log(`Fetched ${branchData.length} branches`);
+        
+        setBranchesWithCommits(branchData);
+        const { nodes: timelineNodes, edges: timelineEdges } = createTimelineGraph(branchData);
+        console.log(`Created ${timelineNodes.length} timeline nodes`);
+        setNodes(timelineNodes);
+        setEdges(timelineEdges);
+        setLoading(false);
+      } else {
+        // Dependencies view - rebuild from parsed data
+        setLoading(true);
+        setProgress({ current: 0, total: 0, message: "Rebuilding dependency graph..." });
+        
+        if (parsedData.size === 0) {
+          throw new Error("No parsed data available. Please re-analyze the repository.");
+        }
+        
+        const graphData = buildGraph(parsedData);
+        const layoutedNodes = applyDagreLayout(graphData.nodes, graphData.edges);
+        setNodes(layoutedNodes);
+        setEdges(graphData.edges);
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error("Error switching views:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to load view";
+      setError(errorMessage);
+      setLoading(false);
+      
+      // Restore previous state if we had nodes
+      if (previousNodes.length > 0) {
+        setNodes(previousNodes);
+        setEdges(previousEdges);
+        setViewMode(previousMode);
+      }
+    }
+    
+    setProgress({ current: 0, total: 0, message: "" });
+  };
+
+  // Handle PR node click
+  const handlePRClick = async (prNumber: number) => {
+    if (!currentRepoInfo) return;
+    try {
+      const details = await fetchPRDetails(currentRepoInfo.owner, currentRepoInfo.repo, prNumber);
+      setSelectedPR(details);
+    } catch (err) {
+      console.error("Failed to fetch PR details:", err);
+    }
+  };
+
   const handleNodeClick = useCallback(
-    (_event: React.MouseEvent, node: FlowNode<FileNodeData>) => {
-      const content = fileContents.get(node.id);
-      const parsed = parsedData.get(node.id);
-      if (content && parsed) {
-        setSelectedFile({
-          path: node.id,
-          content,
-          parsed,
-          data: node.data,
-        });
+    (_event: React.MouseEvent, node: FlowNode<any>) => {
+      // Handle PR node clicks
+      if (viewMode === "prs" && node.id.startsWith("pr-")) {
+        const prNumber = parseInt(node.id.replace("pr-", ""), 10);
+        handlePRClick(prNumber);
+        return;
+      }
+      
+      // Handle file node clicks (dependencies view)
+      if (viewMode === "dependencies") {
+        const content = fileContents.get(node.id);
+        const parsed = parsedData.get(node.id);
+        if (content && parsed) {
+          setSelectedFile({
+            path: node.id,
+            content,
+            parsed,
+            data: node.data,
+          });
+        }
       }
     },
-    [fileContents, parsedData]
+    [fileContents, parsedData, viewMode]
   );
 
   return (
@@ -582,24 +735,52 @@ function CanvasContent() {
         {nodes.length > 0 && (
           <div className="bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden">
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <div className="text-sm text-white/70">
-                <span className="font-semibold text-white">{nodes.length}</span>{" "}
-                files •{" "}
-                <span className="font-semibold text-white">{edges.length}</span>{" "}
-                connections
+              {/* View Mode Tabs */}
+              <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+                {[
+                  { mode: "dependencies" as ViewMode, icon: Network, label: "Dependencies" },
+                  { mode: "files" as ViewMode, icon: FolderTree, label: "Files" },
+                  { mode: "prs" as ViewMode, icon: GitPullRequest, label: "PRs" },
+                  { mode: "timeline" as ViewMode, icon: GitBranch, label: "Timeline" },
+                ].map(({ mode, icon: Icon, label }) => (
+                  <button
+                    key={mode}
+                    onClick={() => handleViewModeChange(mode)}
+                    disabled={loading}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                      viewMode === mode
+                        ? "bg-[#ccf381] text-black"
+                        : "text-white/60 hover:text-white hover:bg-white/10"
+                    } disabled:opacity-50`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="hidden sm:inline">{label}</span>
+                  </button>
+                ))}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setNodes([]);
-                  setEdges([]);
-                  setWarnings([]);
-                }}
-                className="border-white/20 text-white/70 hover:text-white"
-              >
-                Clear
-              </Button>
+              
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-white/70">
+                  <span className="font-semibold text-white">{nodes.length}</span>{" "}
+                  {viewMode === "prs" ? "PRs" : viewMode === "timeline" ? "items" : "files"} •{" "}
+                  <span className="font-semibold text-white">{edges.length}</span>{" "}
+                  connections
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setNodes([]);
+                    setEdges([]);
+                    setWarnings([]);
+                    setCurrentRepoInfo(null);
+                    setViewMode("dependencies");
+                  }}
+                  className="border-white/20 text-white/70 hover:text-white"
+                >
+                  Clear
+                </Button>
+              </div>
             </div>
             <div style={{ height: "70vh" }}>
               <ReactFlow
@@ -678,6 +859,14 @@ function CanvasContent() {
           functions={selectedFile.parsed.functions}
           classes={selectedFile.parsed.classes}
           onClose={() => setSelectedFile(null)}
+        />
+      )}
+
+      {/* PR Panel */}
+      {selectedPR && (
+        <PRPanel
+          pr={selectedPR}
+          onClose={() => setSelectedPR(null)}
         />
       )}
     </div>
