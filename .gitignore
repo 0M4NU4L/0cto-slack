@@ -1,5 +1,7 @@
 node_modules
 .next
+/merge 
+
 
 # Environment files - ignore any .env files so secrets don't get committed
 .env
