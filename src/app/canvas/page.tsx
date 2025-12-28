@@ -372,20 +372,67 @@ function CanvasContent() {
             <h2 className="text-lg font-semibold mb-4">Visualize Repository</h2>
 
             {/* Repository Mode Toggle */}
-            <div className="flex items-center space-x-2 mb-4">
-              <Label htmlFor="repo-mode" className="text-sm font-medium">
-                My Repositories
-              </Label>
-              <Switch
-                id="repo-mode"
-                checked={repoMode === "explore"}
-                onCheckedChange={(checked) =>
-                  setRepoMode(checked ? "explore" : "my-repos")
-                }
-              />
-              <Label htmlFor="repo-mode" className="text-sm font-medium">
-                Explore Any Repo
-              </Label>
+            <div className="flex items-center justify-center mb-6">
+              <div className="relative inline-flex rounded-xl bg-white/5 p-1 backdrop-blur-sm border border-white/10">
+                {/* Sliding background indicator */}
+                <div
+                  className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-gradient-to-r from-[#ccf381] to-[#b8e86e] shadow-lg shadow-[#ccf381]/20 transition-all duration-300 ease-out ${
+                    repoMode === "explore" ? "translate-x-[calc(100%+4px)]" : "translate-x-0"
+                  }`}
+                />
+                {/* My Repositories Button */}
+                <button
+                  onClick={() => setRepoMode("my-repos")}
+                  className={`relative z-10 flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${
+                    repoMode === "my-repos"
+                      ? "text-black"
+                      : "text-white/60 hover:text-white/90"
+                  }`}
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform duration-300 ${
+                      repoMode === "my-repos" ? "scale-110" : ""
+                    }`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                    />
+                  </svg>
+                  <span>My Repos</span>
+                </button>
+                {/* Explore Any Repo Button */}
+                <button
+                  onClick={() => setRepoMode("explore")}
+                  className={`relative z-10 flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${
+                    repoMode === "explore"
+                      ? "text-black"
+                      : "text-white/60 hover:text-white/90"
+                  }`}
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform duration-300 ${
+                      repoMode === "explore" ? "scale-110" : ""
+                    }`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                  <span>Explore Any</span>
+                </button>
+              </div>
             </div>
 
             {/* Repository Selection */}
