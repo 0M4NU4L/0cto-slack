@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
 /**
  * GitHub OAuth Callback Handler
@@ -6,16 +6,16 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const code = searchParams.get('code');
-  const state = searchParams.get('state');
-  const error = searchParams.get('error');
+  const code = searchParams.get("code");
+  const state = searchParams.get("state");
+  const error = searchParams.get("error");
 
   // Ensure baseUrl doesn't have a trailing slash
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
 
   // Handle OAuth errors
   if (error) {
-    console.error('GitHub OAuth error:', error);
+    console.error("GitHub OAuth error:", error);
     return NextResponse.redirect(`${baseUrl}/?error=${error}`);
   }
 
@@ -25,33 +25,36 @@ export async function GET(req: NextRequest) {
 
   try {
     // Exchange code for access token
-    const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        client_id: process.env.GITHUB_CLIENT_ID,
-        client_secret: process.env.GITHUB_CLIENT_SECRET,
-        code,
-      }),
-    });
+    const tokenResponse = await fetch(
+      "https://github.com/login/oauth/access_token",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          client_id: process.env.GITHUB_CLIENT_ID,
+          client_secret: process.env.GITHUB_CLIENT_SECRET,
+          code,
+        }),
+      }
+    );
 
     const tokenData = await tokenResponse.json();
 
     if (tokenData.error) {
-      console.error('GitHub token exchange error:', tokenData);
+      console.error("GitHub token exchange error:", tokenData);
       return NextResponse.redirect(`${baseUrl}/?error=token_exchange_failed`);
     }
 
     const accessToken = tokenData.access_token;
 
     // Get user info from GitHub
-    const userResponse = await fetch('https://api.github.com/user', {
+    const userResponse = await fetch("https://api.github.com/user", {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/vnd.github.v3+json',
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/vnd.github.v3+json",
       },
     });
 
@@ -64,13 +67,16 @@ export async function GET(req: NextRequest) {
         // Decode state if it's URL encoded
         const decodedState = decodeURIComponent(state);
         const stateData = JSON.parse(decodedState);
-        
+
         if (stateData.slack_user_id) {
           isSlackFlow = true;
-          console.log('Detected Slack OAuth flow for user:', stateData.slack_user_id);
-          
+          console.log(
+            "Detected Slack OAuth flow for user:",
+            stateData.slack_user_id
+          );
+
           // Store GitHub token for Slack user
-          const { slackUserService } = await import('@/lib/slack-user-service');
+          const { slackUserService } = await import("@/lib/slack-user-service");
           await slackUserService.storeGitHubAuth(stateData.slack_user_id, {
             access_token: accessToken,
             github_user: userData,
@@ -78,29 +84,32 @@ export async function GET(req: NextRequest) {
 
           // Notify user in Slack
           try {
-            const { slackAIService } = await import('@/lib/slack-ai-service');
-            const targetChannel = stateData.channel_id || stateData.slack_user_id;
-            
+            const { slackAIService } = await import("@/lib/slack-ai-service");
+            const targetChannel =
+              stateData.channel_id || stateData.slack_user_id;
+
             await slackAIService.sendMessage(
               targetChannel,
-              'GitHub Connected Successfully!',
+              "GitHub Connected Successfully!",
               [
                 {
-                  type: 'section',
+                  type: "section",
                   text: {
-                    type: 'mrkdwn',
-                    text: `✅ *GitHub Connected Successfully!*\n\n🔗 **Account:** ${userData.login}\n📧 **Email:** ${userData.email || 'Not provided'}`
-                  }
-                }
+                    type: "mrkdwn",
+                    text: `✅ *GitHub Connected Successfully!*\n\n🔗 **Account:** ${
+                      userData.login
+                    }\n📧 **Email:** ${userData.email || "Not provided"}`,
+                  },
+                },
               ]
             );
           } catch (e) {
-            console.error('Failed to send Slack notification:', e);
+            console.error("Failed to send Slack notification:", e);
           }
         }
       } catch (e) {
         // Not a JSON state or not a Slack flow, ignore
-        console.log('State is not valid JSON or not Slack flow:', e);
+        console.log("State is not valid JSON or not Slack flow:", e);
       }
     }
 
@@ -143,12 +152,18 @@ export async function GET(req: NextRequest) {
   <div class="container">
     <div class="spinner"></div>
     <h2>Authentication successful!</h2>
-    <p>${isSlackFlow ? 'You can close this window and return to Slack.' : 'Redirecting to dashboard...'}</p>
+    <p>${
+      isSlackFlow
+        ? "You can close this window and return to Slack."
+        : "Redirecting to dashboard..."
+    }</p>
   </div>
   <script type="module">
     // Store tokens in sessionStorage
     sessionStorage.setItem('github_token', ${JSON.stringify(accessToken)});
-    sessionStorage.setItem('github_user', ${JSON.stringify(JSON.stringify(userData))});
+    sessionStorage.setItem('github_user', ${JSON.stringify(
+      JSON.stringify(userData)
+    )});
     
     // Import Firebase and sign in
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
@@ -171,14 +186,22 @@ export async function GET(req: NextRequest) {
         console.log('Firebase auth successful');
         // Redirect to dashboard after Firebase auth
         setTimeout(() => {
-          ${isSlackFlow ? 'window.close();' : "window.location.href = '/dashboard';"}
+          ${
+            isSlackFlow
+              ? "window.close();"
+              : "window.location.href = '/onboard';"
+          }
         }, 1500);
       })
       .catch((error) => {
         console.error('Firebase auth error:', error);
-        // Still redirect to dashboard even if Firebase fails
+        // Still redirect to onboard even if Firebase fails
         setTimeout(() => {
-          ${isSlackFlow ? 'window.close();' : "window.location.href = '/dashboard';"}
+          ${
+            isSlackFlow
+              ? "window.close();"
+              : "window.location.href = '/onboard';"
+          }
         }, 1500);
       });
   </script>
@@ -188,12 +211,11 @@ export async function GET(req: NextRequest) {
 
     return new NextResponse(html, {
       headers: {
-        'Content-Type': 'text/html',
+        "Content-Type": "text/html",
       },
     });
-
   } catch (error) {
-    console.error('GitHub OAuth callback error:', error);
+    console.error("GitHub OAuth callback error:", error);
     return NextResponse.redirect(`${baseUrl}/?error=callback_failed`);
   }
 }
