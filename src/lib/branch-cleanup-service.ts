@@ -74,17 +74,21 @@ export class BranchCleanupService {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
+    // Simplified query to avoid composite index requirement
     const q = query(
       collection(db, 'merged_branches'),
-      where('status', '==', 'pending'),
-      where('merged_at', '<=', Timestamp.fromDate(sevenDaysAgo))
+      where('status', '==', 'pending')
     );
 
     const snapshot = await getDocs(q);
     
     for (const docSnap of snapshot.docs) {
       const branch = docSnap.data() as MergedBranch;
-      await this.scheduleArchive(docSnap.id, branch);
+      
+      // Client-side filtering for date
+      if (branch.merged_at.toDate() <= sevenDaysAgo) {
+        await this.scheduleArchive(docSnap.id, branch);
+      }
     }
   }
 
@@ -94,17 +98,21 @@ export class BranchCleanupService {
   async checkScheduledBranches() {
     const now = new Date();
     
+    // Simplified query to avoid composite index requirement
     const q = query(
       collection(db, 'merged_branches'),
-      where('status', '==', 'scheduled'),
-      where('scheduled_archive_at', '<=', Timestamp.fromDate(now))
+      where('status', '==', 'scheduled')
     );
 
     const snapshot = await getDocs(q);
     
     for (const docSnap of snapshot.docs) {
       const branch = docSnap.data() as MergedBranch;
-      await this.executeArchive(docSnap.id, branch);
+      
+      // Client-side filtering for date
+      if (branch.scheduled_archive_at && branch.scheduled_archive_at.toDate() <= now) {
+        await this.executeArchive(docSnap.id, branch);
+      }
     }
   }
 
@@ -302,19 +310,24 @@ export class BranchCleanupService {
   
   /**
    * Get stale branches for on-demand list
+   * @param daysThreshold - Number of days since merge to consider "stale" (default 7)
    */
-  async getStaleBranches() {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  async getStaleBranches(daysThreshold: number = 7) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysThreshold);
     
+    // Simplified query to avoid composite index requirement
     const q = query(
       collection(db, 'merged_branches'),
-      where('status', '==', 'pending'),
-      where('merged_at', '<=', Timestamp.fromDate(sevenDaysAgo))
+      where('status', '==', 'pending')
     );
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as MergedBranch));
+    
+    // Client-side filtering
+    return snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() } as MergedBranch))
+      .filter(branch => branch.merged_at.toDate() <= cutoffDate);
   }
 }
 
