@@ -227,27 +227,40 @@ export async function POST(req: NextRequest) {
           if (text?.includes('branches')) {
             try {
              const { branchCleanupService } = await import('@/lib/branch-cleanup-service');
-             const staleBranches = await branchCleanupService.getStaleBranches();
              
-             if (staleBranches.length === 0) {
+             // 1. Try to find stale branches (> 7 days)
+             let branches = await branchCleanupService.getStaleBranches(7);
+             let isStale = true;
+
+             // 2. If none, find ALL pending branches (> 0 days) to show recent activity
+             if (branches.length === 0) {
+               branches = await branchCleanupService.getStaleBranches(0);
+               isStale = false;
+             }
+             
+             if (branches.length === 0) {
                return NextResponse.json({
                  response_type: 'ephemeral',
-                 text: '🧹 No stale branches found to cleanup.'
+                 text: '🧹 No merged branches found pending cleanup.'
                });
              }
              
-             // Build blocks for stale branches
+             // Build blocks
+             const title = isStale 
+               ? `🧹 *Found ${branches.length} stale branches (merged > 7 days ago)*`
+               : `ℹ️ *No stale branches found, but found ${branches.length} recent branches:*`;
+
              const blocks: any[] = [
                {
                  type: 'section',
                  text: {
                    type: 'mrkdwn',
-                   text: `🧹 *Found ${staleBranches.length} stale branches (merged > 7 days ago)*`
+                   text: title
                  }
                }
              ];
              
-             staleBranches.forEach(branch => {
+             branches.forEach(branch => {
                blocks.push({
                  type: 'section',
                  text: {
@@ -268,9 +281,19 @@ export async function POST(req: NextRequest) {
                });
              });
              
+             if (!isStale) {
+                blocks.push({
+                  type: 'context',
+                  elements: [{
+                    type: 'mrkdwn',
+                    text: '⚠️ These branches are less than 7 days old. Archiving them is optional.'
+                  }]
+                });
+             }
+             
              return NextResponse.json({
                response_type: 'ephemeral',
-               text: `Found ${staleBranches.length} stale branches.`,
+               text: `Found ${branches.length} branches.`,
                blocks: blocks
              });
             } catch (error) {

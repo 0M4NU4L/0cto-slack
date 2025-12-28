@@ -310,10 +310,11 @@ export class BranchCleanupService {
   
   /**
    * Get stale branches for on-demand list
+   * @param daysThreshold - Number of days since merge to consider "stale" (default 7)
    */
-  async getStaleBranches() {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  async getStaleBranches(daysThreshold: number = 7) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysThreshold);
     
     // Simplified query to avoid composite index requirement
     const q = query(
@@ -326,7 +327,7 @@ export class BranchCleanupService {
     // Client-side filtering
     return snapshot.docs
       .map(d => ({ id: d.id, ...d.data() } as MergedBranch))
-      .filter(branch => branch.merged_at.toDate() <= sevenDaysAgo);
+      .filter(branch => branch.merged_at.toDate() <= cutoffDate);
   }
 }
 
